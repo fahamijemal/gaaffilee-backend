@@ -2,6 +2,7 @@ import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { PrismaSessionRepository } from '../../infrastructure/prisma-session.repository';
 import { QuestionRepositoryPort } from '../../../questions/core/ports/question.repository.port';
 import { QuestionShuffleService } from '../../../questions/core/question-shuffle.service';
+import { EXAM_SIMULATION_SECONDS_PER_QUESTION } from '../../../../config/constants';
 
 @Injectable()
 export class StartSessionUseCase {
@@ -54,7 +55,7 @@ export class StartSessionUseCase {
       session_id: session.id,
       status: session.status,
       total_questions: session.total_questions,
-      timer_per_question: dto.study_mode === 'exam_simulation' ? 90 : 0,
+      timer_per_question: dto.study_mode === 'exam_simulation' ? EXAM_SIMULATION_SECONDS_PER_QUESTION : 0,
       ai_hints_remaining: parseInt(process.env.AI_CALLS_PER_SESSION || '3', 10),
       started_at: session.started_at,
       questions: delivery,

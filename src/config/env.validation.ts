@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsString, Min, validateSync } from 'class-validator';
+import { IsEnum, IsNumber, IsString, MinLength, validateSync } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 
 class EnvironmentVariables {
@@ -15,7 +15,7 @@ class EnvironmentVariables {
   DIRECT_URL: string;
 
   @IsString()
-  @Min(32 as any)
+  @MinLength(32)
   JWT_SECRET: string;
 
   @IsNumber()
