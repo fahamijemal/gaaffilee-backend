@@ -13,6 +13,16 @@ import { AiModule } from './modules/ai/ai.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AdminModule } from './modules/admin/admin.module';
 
+const FEATURE_MODULES = [
+  AuthModule,
+  NavigationModule,
+  QuestionsModule,
+  SessionsModule,
+  AiModule,
+  DashboardModule,
+  AdminModule,
+];
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -25,13 +35,7 @@ import { AdminModule } from './modules/admin/admin.module';
     }]),
     PrismaModule,
     RedisModule,
-    AuthModule,
-    NavigationModule,
-    QuestionsModule,
-    SessionsModule,
-    AiModule,
-    DashboardModule,
-    AdminModule,
+    ...FEATURE_MODULES,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
