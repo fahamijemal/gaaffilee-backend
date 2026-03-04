@@ -53,4 +53,4 @@ USER node
 EXPOSE 4000
 
 # Run migrations then start the app
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]
+CMD ["sh", "-c", "npx prisma@5.22.0 migrate deploy && node dist/src/main.js"]
