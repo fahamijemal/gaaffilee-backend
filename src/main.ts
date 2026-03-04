@@ -65,6 +65,7 @@ async function bootstrap() {
       .addTag('Dashboard', 'Student personal performance analytics')
       .addTag('Admin', 'Question CRUD, user management, analytics (admin only)')
       .addServer('http://localhost:4000', 'Local Development')
+      .addServer('http://16.170.163.115:4000', 'EC2 (AWS Free Tier)')
       .addServer('https://staging-api.gaaffilee.et', 'Staging')
       .addServer('https://api.gaaffilee.et', 'Production')
       .build();
