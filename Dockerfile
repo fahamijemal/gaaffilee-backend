@@ -40,9 +40,8 @@ RUN pnpm install --frozen-lockfile --prod
 # Copy Prisma schema + migrations (needed for migrate deploy)
 COPY prisma ./prisma
 
-# Copy generated Prisma client from builder
-COPY --from=builder /app/node_modules/.pnpm/@prisma+client@*/node_modules/@prisma/client ./node_modules/@prisma/client
-COPY --from=builder /app/node_modules/.pnpm/@prisma+client@*/node_modules/.prisma ./node_modules/.prisma
+# Generate Prisma client directly in production node_modules
+RUN npx prisma@5.22.0 generate
 
 # Copy compiled app from builder
 COPY --from=builder /app/dist ./dist
