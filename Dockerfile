@@ -3,8 +3,8 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install pnpm
-RUN npm install -g pnpm
+# Install pnpm + openssl (required by Prisma on Alpine)
+RUN apk add --no-cache openssl && npm install -g pnpm
 
 # Copy dependency files first (layer caching)
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -28,8 +28,8 @@ FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Install pnpm (needed for prisma:migrate:deploy script)
-RUN npm install -g pnpm
+# Install pnpm + openssl (required by Prisma on Alpine)
+RUN apk add --no-cache openssl && npm install -g pnpm
 
 # Copy package files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
