@@ -1,7 +1,15 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, ApiResponse } from '@nestjs/swagger';
+import {
+  StartSessionResponseDto,
+  ListSessionsResponseDto,
+  SessionObjectDto,
+  SubmitAnswerResponseDto,
+  CompleteSessionResponseDto,
+  GetReviewResponseDto
+} from './sessions-responses.dto';
 import { StartSessionUseCase } from '../application/use-cases/start-session.use-case';
 import { SubmitAnswerUseCase } from '../application/use-cases/submit-answer.use-case';
 import { SkipQuestionUseCase } from '../application/use-cases/skip-question.use-case';
@@ -49,11 +57,12 @@ export class SessionsController {
     private completeUC: CompleteSessionUseCase,
     private reviewUC: GetReviewUseCase,
     private sessionRepo: PrismaSessionRepository,
-  ) {}
+  ) { }
 
   @Post()
   @ApiOperation({ summary: 'Start a new quiz session — returns questions (no correct_answer)' })
   @ApiBody({ type: StartSessionDto })
+  @ApiResponse({ status: 201, description: 'Session started successfully', type: StartSessionResponseDto })
   startSession(@CurrentUser('sub') userId: string, @Body() dto: StartSessionDto) {
     return this.startUC.execute(userId, dto);
   }
@@ -64,6 +73,7 @@ export class SessionsController {
   @ApiQuery({ name: 'study_mode', required: false })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'cursor', required: false })
+  @ApiResponse({ status: 200, description: 'List of sessions', type: ListSessionsResponseDto })
   async listSessions(
     @CurrentUser('sub') userId: string,
     @Query('subject_id') subject_id?: string,
@@ -82,6 +92,7 @@ export class SessionsController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get session by ID' })
+  @ApiResponse({ status: 200, description: 'Session details', type: SessionObjectDto })
   getSession(@Param('id', ParseCuidPipe) id: string, @CurrentUser('sub') userId: string) {
     return this.sessionRepo.findSessionWithOwnerCheck(id, userId);
   }
@@ -89,6 +100,7 @@ export class SessionsController {
   @Post(':id/answer')
   @ApiOperation({ summary: 'Submit answer — timer enforcement for exam_simulation' })
   @ApiBody({ type: SubmitAnswerDto })
+  @ApiResponse({ status: 201, description: 'Answer submitted', type: SubmitAnswerResponseDto })
   submitAnswer(
     @Param('id', ParseCuidPipe) id: string,
     @CurrentUser('sub') userId: string,
@@ -100,6 +112,7 @@ export class SessionsController {
   @Post(':id/skip')
   @ApiOperation({ summary: 'Skip question (practice modes only — 422 in exam_simulation)' })
   @ApiBody({ type: SkipQuestionDto })
+  @ApiResponse({ status: 201, description: 'Question skipped', type: SubmitAnswerResponseDto })
   skipQuestion(
     @Param('id', ParseCuidPipe) id: string,
     @CurrentUser('sub') userId: string,
@@ -110,12 +123,14 @@ export class SessionsController {
 
   @Patch(':id/complete')
   @ApiOperation({ summary: 'Finalise session — compute score, trigger weakness report if needed' })
+  @ApiResponse({ status: 200, description: 'Session completed', type: CompleteSessionResponseDto })
   completeSession(@Param('id', ParseCuidPipe) id: string, @CurrentUser('sub') userId: string) {
     return this.completeUC.execute(id, userId);
   }
 
   @Get(':id/review')
   @ApiOperation({ summary: 'Full answer review (completed sessions only)' })
+  @ApiResponse({ status: 200, description: 'Session review', type: GetReviewResponseDto })
   getReview(@Param('id', ParseCuidPipe) id: string, @CurrentUser('sub') userId: string) {
     return this.reviewUC.execute(id, userId);
   }

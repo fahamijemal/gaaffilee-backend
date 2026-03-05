@@ -1,6 +1,7 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { QuestionRepositoryPort } from '../core/ports/question.repository.port';
+import { QuestionsResponseDto } from './questions-responses.dto';
 import { QuestionShuffleService } from '../core/question-shuffle.service';
 import { Public } from '../../../common/decorators/public.decorator';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -12,7 +13,7 @@ import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 export class QuestionsController {
   private shuffleService = new QuestionShuffleService();
 
-  constructor(private readonly repo: QuestionRepositoryPort) {}
+  constructor(private readonly repo: QuestionRepositoryPort) { }
 
   @Get()
   @ApiOperation({ summary: 'Fetch shuffled questions — correct_answer NEVER included (Public)' })
@@ -24,6 +25,7 @@ export class QuestionsController {
   @ApiQuery({ name: 'year', required: false })
   @ApiQuery({ name: 'difficulty', required: false, enum: ['easy', 'medium', 'hard'] })
   @ApiQuery({ name: 'seed', required: false })
+  @ApiResponse({ status: 200, description: 'List of questions', type: QuestionsResponseDto })
   async getQuestions(
     @Query('subject_id') subject_id: string,
     @Query('study_mode') study_mode: string,

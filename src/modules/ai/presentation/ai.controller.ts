@@ -1,7 +1,15 @@
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, ApiResponse } from '@nestjs/swagger';
+import {
+  AiHintResponseDto,
+  AiExplainResponseDto,
+  AiChatResponseDto,
+  WeaknessReportPollResponseDto,
+  TriggerWeaknessReportResponseDto,
+  GenerateQuestionsResponseDto,
+} from './ai-responses.dto';
 import { AiProviderPort, ChatMessage } from '../core/ports/ai-provider.port';
 import { AiRateLimiterService } from '../core/ai-rate-limiter.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -67,6 +75,7 @@ export class AiController {
   @Roles('student', 'teacher', 'admin')
   @ApiOperation({ summary: 'Socratic hint (max 2/question, 3/session). Not available in exam_simulation.' })
   @ApiBody({ type: HintDto })
+  @ApiResponse({ status: 201, description: 'AI hint provided', type: AiHintResponseDto })
   async getHint(@CurrentUser('sub') userId: string, @Body() dto: HintDto) {
     const session = await this.sessionRepo.findSessionWithOwnerCheck(dto.session_id, userId);
     if (session.study_mode === 'exam_simulation') {
@@ -110,6 +119,7 @@ export class AiController {
   @Roles('student', 'teacher', 'admin')
   @ApiOperation({ summary: 'Full explanation after answering. DB explanation used if available.' })
   @ApiBody({ type: ExplainDto })
+  @ApiResponse({ status: 201, description: 'Explanation provided', type: AiExplainResponseDto })
   async explain(@CurrentUser('sub') userId: string, @Body() dto: ExplainDto) {
     const session = await this.sessionRepo.findSessionWithOwnerCheck(dto.session_id, userId);
     if (session.study_mode === 'exam_simulation') {
@@ -153,6 +163,7 @@ export class AiController {
   @Roles('student', 'teacher', 'admin')
   @ApiOperation({ summary: 'Multi-turn chat on a question (completed sessions only)' })
   @ApiBody({ type: ChatDto })
+  @ApiResponse({ status: 201, description: 'Chat reply', type: AiChatResponseDto })
   async chat(@CurrentUser('sub') userId: string, @Body() dto: ChatDto) {
     const session = await this.sessionRepo.findSessionWithOwnerCheck(dto.session_id, userId);
     if (session.status !== 'completed') {
@@ -183,6 +194,7 @@ export class AiController {
   @ApiOperation({ summary: 'Poll weakness report status — pending|ready' })
   @ApiQuery({ name: 'subject_id', required: true })
   @ApiQuery({ name: 'grade', required: true, type: Number })
+  @ApiResponse({ status: 200, description: 'Report status', type: WeaknessReportPollResponseDto })
   async getWeaknessReport(
     @CurrentUser('sub') userId: string,
     @Query('subject_id') subject_id: string,
@@ -206,6 +218,7 @@ export class AiController {
   @Roles('student', 'teacher', 'admin')
   @ApiOperation({ summary: 'Trigger async weakness report generation' })
   @ApiBody({ type: WeaknessReportDto })
+  @ApiResponse({ status: 201, description: 'Report triggered', type: TriggerWeaknessReportResponseDto })
   async triggerWeaknessReport(@CurrentUser('sub') userId: string, @Body() dto: WeaknessReportDto) {
     const sessions = await this.prisma.quizSession.findMany({
       where: { user_id: userId, subject_id: dto.subject_id, status: 'completed' },
@@ -223,7 +236,7 @@ export class AiController {
         where: { id: latest.id },
         data: { weakness_report_status: 'ready', weakness_report: report },
       });
-    }).catch(() => {});
+    }).catch(() => { });
     return { message: 'Weakness report generation started.', status: 'pending' };
   }
 
@@ -231,6 +244,7 @@ export class AiController {
   @Roles('admin')
   @ApiOperation({ summary: 'Admin: generate draft questions via Gemini' })
   @ApiBody({ type: GenerateQuestionsDto })
+  @ApiResponse({ status: 201, description: 'Draft questions generated', type: GenerateQuestionsResponseDto })
   async generateQuestions(@Body() dto: GenerateQuestionsDto) {
     const chapter = await this.prisma.chapter.findUnique({ where: { id: dto.chapter_id } });
     const subject = await this.prisma.subject.findUnique({ where: { id: dto.subject_id } });

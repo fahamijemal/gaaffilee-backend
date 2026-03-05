@@ -15,6 +15,17 @@ import { IsEnum, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, MinL
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { randomUUID } from 'crypto';
 import { parse } from 'csv-parse/sync';
+import { ApiResponse } from '@nestjs/swagger';
+import {
+  AdminQuestionDto,
+  PaginatedAdminQuestionsDto,
+  BulkUploadJobResponseDto,
+  BulkJobStatusDto,
+  AdminUserDto,
+  PaginatedAdminUsersDto,
+  AdminChapterDto,
+  AdminAnalyticsDto,
+} from './admin-responses.dto';
 
 class CreateQuestionDto {
   @ApiProperty() @IsString() subject_id: string;
@@ -48,7 +59,7 @@ export class AdminController {
   constructor(
     private readonly admin: AdminService,
     private readonly redis: RedisService,
-  ) {}
+  ) { }
 
   // ── Questions ──────────────────────────────────────────────────────────────
   @Get('questions')
@@ -58,6 +69,7 @@ export class AdminController {
   @ApiQuery({ name: 'grade', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'cursor', required: false })
+  @ApiResponse({ status: 200, description: 'List of questions', type: PaginatedAdminQuestionsDto })
   async listQuestions(
     @Query('subject_id') subject_id?: string,
     @Query('status') status?: string,
@@ -76,6 +88,7 @@ export class AdminController {
 
   @Get('questions/:id')
   @ApiOperation({ summary: 'Get single question (all fields)' })
+  @ApiResponse({ status: 200, description: 'Question details', type: AdminQuestionDto })
   getQuestion(@Param('id', ParseCuidPipe) id: string) {
     return this.admin.getQuestion(id);
   }
@@ -83,30 +96,35 @@ export class AdminController {
   @Post('questions')
   @ApiOperation({ summary: 'Add single question' })
   @ApiBody({ type: CreateQuestionDto })
+  @ApiResponse({ status: 201, description: 'Question created', type: AdminQuestionDto })
   createQuestion(@Body() dto: CreateQuestionDto, @CurrentUser('sub') userId: string) {
     return this.admin.createQuestion(dto, userId);
   }
 
   @Put('questions/:id')
   @ApiOperation({ summary: 'Full update — archives and replaces if has existing answers' })
+  @ApiResponse({ status: 200, description: 'Question updated', type: AdminQuestionDto })
   updateQuestion(@Param('id', ParseCuidPipe) id: string, @Body() dto: Partial<CreateQuestionDto>) {
     return this.admin.updateQuestion(id, dto);
   }
 
   @Patch('questions/:id/status')
   @ApiOperation({ summary: 'Change question status: active | draft | archived' })
+  @ApiResponse({ status: 200, description: 'Status updated', type: AdminQuestionDto })
   updateQuestionStatus(@Param('id', ParseCuidPipe) id: string, @Body('status') status: string) {
     return this.admin.updateQuestionStatus(id, status);
   }
 
   @Patch('questions/:id/approve')
   @ApiOperation({ summary: 'Approve Gemini-generated draft question' })
+  @ApiResponse({ status: 200, description: 'Question approved', type: AdminQuestionDto })
   approveQuestion(@Param('id', ParseCuidPipe) id: string) {
     return this.admin.updateQuestionStatus(id, 'active');
   }
 
   @Delete('questions/:id')
   @ApiOperation({ summary: 'Soft-delete question (status → archived)' })
+  @ApiResponse({ status: 200, description: 'Question archived', type: AdminQuestionDto })
   archiveQuestion(@Param('id', ParseCuidPipe) id: string) {
     return this.admin.archiveQuestion(id);
   }
@@ -118,6 +136,7 @@ export class AdminController {
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
   @UseInterceptors(FileInterceptor('file'))
+  @ApiResponse({ status: 202, description: 'Job queued', type: BulkUploadJobResponseDto })
   async bulkUpload(@UploadedFile() file: Express.Multer.File, @CurrentUser('sub') userId: string) {
     const jobId = randomUUID();
     const jobKey = `bulk_job:${jobId}`;
@@ -165,6 +184,7 @@ export class AdminController {
 
   @Get('questions/bulk/:job_id')
   @ApiOperation({ summary: 'Poll bulk upload job status' })
+  @ApiResponse({ status: 200, description: 'Job status', type: BulkJobStatusDto })
   async getBulkJobStatus(@Param('job_id') jobId: string) {
     const data = await this.redis.get(`bulk_job:${jobId}`);
     if (!data) return { status: 'not_found' };
@@ -177,6 +197,7 @@ export class AdminController {
   @ApiQuery({ name: 'role', required: false, enum: ['student', 'teacher', 'admin'] })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'cursor', required: false })
+  @ApiResponse({ status: 200, description: 'List of users', type: PaginatedAdminUsersDto })
   async listUsers(@Query('role') role?: string, @Query('limit') limit = 20, @Query('cursor') cursor?: string) {
     const l = Math.min(Number(limit) || 20, 100);
     const result = await this.admin.listUsers({ role }, l, cursor);
@@ -185,14 +206,17 @@ export class AdminController {
 
   @Get('users/:id')
   @ApiOperation({ summary: 'User profile + performance summary' })
+  @ApiResponse({ status: 200, description: 'User details', type: AdminUserDto })
   getUser(@Param('id', ParseCuidPipe) id: string) { return this.admin.getUser(id); }
 
   @Patch('users/:id/role')
   @ApiOperation({ summary: 'Change user role' })
+  @ApiResponse({ status: 200, description: 'Role updated', type: AdminUserDto })
   updateRole(@Param('id', ParseCuidPipe) id: string, @Body('role') role: string) { return this.admin.updateUserRole(id, role); }
 
   @Patch('users/:id/suspend')
   @ApiOperation({ summary: 'Suspend or unsuspend account' })
+  @ApiResponse({ status: 200, description: 'Account suspended/unsuspended', type: AdminUserDto })
   suspend(@Param('id', ParseCuidPipe) id: string, @Body('suspend') suspend: boolean) { return this.admin.toggleSuspend(id, suspend); }
 
   // ── Chapters ───────────────────────────────────────────────────────────────
@@ -200,6 +224,7 @@ export class AdminController {
   @ApiOperation({ summary: 'List chapters (filterable)' })
   @ApiQuery({ name: 'subject_id', required: false })
   @ApiQuery({ name: 'grade', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'List of chapters', type: [AdminChapterDto] })
   listChapters(@Query('subject_id') subject_id?: string, @Query('grade') grade?: number) {
     return this.admin.listChapters({ subject_id, grade });
   }
@@ -207,23 +232,28 @@ export class AdminController {
   @Post('chapters')
   @ApiOperation({ summary: 'Add new chapter' })
   @ApiBody({ type: CreateChapterDto })
+  @ApiResponse({ status: 201, description: 'Chapter created', type: AdminChapterDto })
   createChapter(@Body() dto: CreateChapterDto) { return this.admin.createChapter(dto); }
 
   @Put('chapters/:id')
   @ApiOperation({ summary: 'Edit chapter' })
+  @ApiResponse({ status: 200, description: 'Chapter updated', type: AdminChapterDto })
   updateChapter(@Param('id', ParseCuidPipe) id: string, @Body() dto: Partial<CreateChapterDto>) { return this.admin.updateChapter(id, dto); }
 
   @Patch('chapters/reorder')
   @ApiOperation({ summary: 'Batch reorder chapters' })
+  @ApiResponse({ status: 200, description: 'Chapters reordered', type: [AdminChapterDto] })
   reorderChapters(@Body() items: { id: string; chapter_number: number }[]) { return this.admin.reorderChapters(items); }
 
   @Delete('chapters/:id')
   @ApiOperation({ summary: 'Delete chapter (blocked if has active questions)' })
+  @ApiResponse({ status: 200, description: 'Chapter deleted', type: AdminChapterDto })
   deleteChapter(@Param('id', ParseCuidPipe) id: string) { return this.admin.deleteChapter(id); }
 
   // ── Analytics ──────────────────────────────────────────────────────────────
   @Get('analytics/overview')
   @ApiOperation({ summary: 'Platform-wide totals' })
+  @ApiResponse({ status: 200, description: 'Overview stats', type: AdminAnalyticsDto })
   analyticsOverview() { return this.admin.getAnalyticsOverview(); }
 
   @Get('analytics/missed')
