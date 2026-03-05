@@ -50,7 +50,7 @@ async function bootstrap() {
         '🇪🇹 Ethiopian Grade 9–12 National Exam Practice Platform\n\n' +
         '**Authentication:** Use `POST /v1/auth/login` to get a Bearer token, then click **Authorize** above.\n\n' +
         '**Guest access:** Endpoints marked `Public` require no token.\n\n' +
-        '**Base URL:** `http://localhost:4000/v1`',
+        '**Base URL:** `https://gaaffilee-backend.onrender.com/v1`',
       )
       .setVersion('1.0.0')
       .addBearerAuth(
@@ -67,7 +67,7 @@ async function bootstrap() {
       .addServer('http://localhost:4000', 'Local Development')
       .addServer('http://16.170.163.115:4000', 'EC2 (AWS Free Tier)')
       .addServer('https://staging-api.gaaffilee.et', 'Staging')
-      .addServer('https://api.gaaffilee.et', 'Production')
+      .addServer('https://gaaffilee-backend.onrender.com', 'Production')
       .build();
 
     const document = SwaggerModule.createDocument(app, config);
