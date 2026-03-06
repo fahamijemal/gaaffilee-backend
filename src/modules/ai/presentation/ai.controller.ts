@@ -14,7 +14,9 @@ import { AiProviderPort, ChatMessage } from '../core/ports/ai-provider.port';
 import { AiRateLimiterService } from '../core/ai-rate-limiter.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
+import { PermissionsGuard } from '../../../common/guards/permissions.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
+import { Permissions } from '../../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { PrismaSessionRepository } from '../../sessions/infrastructure/prisma-session.repository';
 import { PrismaService } from '../../../prisma/prisma.service';
@@ -22,6 +24,7 @@ import {
   NotFoundException, UnprocessableEntityException, ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { PERMISSIONS } from '../../../common/authorization/permissions';
 
 class HintDto {
   @ApiProperty() @IsString() session_id: string;
@@ -58,7 +61,7 @@ class GenerateQuestionsDto {
 @ApiTags('AI')
 @ApiBearerAuth('JWT')
 @Controller('ai')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 export class AiController {
   private rateLimiter: AiRateLimiterService;
 
@@ -241,7 +244,8 @@ export class AiController {
   }
 
   @Post('generate-questions')
-  @Roles('admin')
+  @Roles('admin', 'teacher')
+  @Permissions(PERMISSIONS.CONTENT_AI_GENERATE_QUESTIONS)
   @ApiOperation({ summary: 'Admin: generate draft questions via Gemini' })
   @ApiBody({ type: GenerateQuestionsDto })
   @ApiResponse({ status: 201, description: 'Draft questions generated', type: GenerateQuestionsResponseDto })

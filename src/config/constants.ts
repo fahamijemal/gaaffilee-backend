@@ -1,5 +1,6 @@
 export const IS_PUBLIC_KEY = 'isPublic';
 export const ROLES_KEY = 'roles';
+export const PERMISSIONS_KEY = 'permissions';
 export const CURRENT_USER_KEY = 'user';
 export const JWT_STRATEGY = 'jwt';
 

@@ -7,7 +7,9 @@ import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiQuery, ApiTags } 
 import { AdminService } from '../admin.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
+import { PermissionsGuard } from '../../../common/guards/permissions.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
+import { Permissions } from '../../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { ParseCuidPipe } from '../../../common/pipes/parse-cuid.pipe';
 import { RedisService } from '../../../redis/redis.service';
@@ -26,6 +28,7 @@ import {
   AdminChapterDto,
   AdminAnalyticsDto,
 } from './admin-responses.dto';
+import { PERMISSIONS } from '../../../common/authorization/permissions';
 
 class CreateQuestionDto {
   @ApiProperty() @IsString() subject_id: string;
@@ -53,8 +56,8 @@ class CreateChapterDto {
 @ApiTags('Admin')
 @ApiBearerAuth('JWT')
 @Controller('admin')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('admin')
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@Roles('admin', 'teacher')
 export class AdminController {
   constructor(
     private readonly admin: AdminService,
@@ -63,6 +66,7 @@ export class AdminController {
 
   // ── Questions ──────────────────────────────────────────────────────────────
   @Get('questions')
+  @Permissions(PERMISSIONS.CONTENT_QUESTIONS_READ)
   @ApiOperation({ summary: 'Paginated question list (all fields including correct_answer)' })
   @ApiQuery({ name: 'subject_id', required: false })
   @ApiQuery({ name: 'status', required: false, enum: ['active', 'draft', 'archived'] })
@@ -87,6 +91,7 @@ export class AdminController {
   }
 
   @Get('questions/:id')
+  @Permissions(PERMISSIONS.CONTENT_QUESTIONS_READ)
   @ApiOperation({ summary: 'Get single question (all fields)' })
   @ApiResponse({ status: 200, description: 'Question details', type: AdminQuestionDto })
   getQuestion(@Param('id', ParseCuidPipe) id: string) {
@@ -94,6 +99,7 @@ export class AdminController {
   }
 
   @Post('questions')
+  @Permissions(PERMISSIONS.CONTENT_QUESTIONS_WRITE)
   @ApiOperation({ summary: 'Add single question' })
   @ApiBody({ type: CreateQuestionDto })
   @ApiResponse({ status: 201, description: 'Question created', type: AdminQuestionDto })
@@ -102,6 +108,7 @@ export class AdminController {
   }
 
   @Put('questions/:id')
+  @Permissions(PERMISSIONS.CONTENT_QUESTIONS_WRITE)
   @ApiOperation({ summary: 'Full update — archives and replaces if has existing answers' })
   @ApiResponse({ status: 200, description: 'Question updated', type: AdminQuestionDto })
   updateQuestion(@Param('id', ParseCuidPipe) id: string, @Body() dto: Partial<CreateQuestionDto>) {
@@ -109,6 +116,7 @@ export class AdminController {
   }
 
   @Patch('questions/:id/status')
+  @Permissions(PERMISSIONS.CONTENT_QUESTIONS_WRITE)
   @ApiOperation({ summary: 'Change question status: active | draft | archived' })
   @ApiResponse({ status: 200, description: 'Status updated', type: AdminQuestionDto })
   updateQuestionStatus(@Param('id', ParseCuidPipe) id: string, @Body('status') status: string) {
@@ -116,6 +124,7 @@ export class AdminController {
   }
 
   @Patch('questions/:id/approve')
+  @Permissions(PERMISSIONS.CONTENT_QUESTIONS_WRITE)
   @ApiOperation({ summary: 'Approve Gemini-generated draft question' })
   @ApiResponse({ status: 200, description: 'Question approved', type: AdminQuestionDto })
   approveQuestion(@Param('id', ParseCuidPipe) id: string) {
@@ -123,6 +132,7 @@ export class AdminController {
   }
 
   @Delete('questions/:id')
+  @Permissions(PERMISSIONS.CONTENT_QUESTIONS_WRITE)
   @ApiOperation({ summary: 'Soft-delete question (status → archived)' })
   @ApiResponse({ status: 200, description: 'Question archived', type: AdminQuestionDto })
   archiveQuestion(@Param('id', ParseCuidPipe) id: string) {
@@ -131,6 +141,7 @@ export class AdminController {
 
   // ── Bulk Upload ────────────────────────────────────────────────────────────
   @Post('questions/bulk')
+  @Permissions(PERMISSIONS.CONTENT_QUESTIONS_BULK)
   @HttpCode(202)
   @ApiOperation({ summary: 'CSV bulk upload — async job, returns job_id to poll' })
   @ApiConsumes('multipart/form-data')
@@ -183,6 +194,7 @@ export class AdminController {
   }
 
   @Get('questions/bulk/:job_id')
+  @Permissions(PERMISSIONS.CONTENT_QUESTIONS_BULK)
   @ApiOperation({ summary: 'Poll bulk upload job status' })
   @ApiResponse({ status: 200, description: 'Job status', type: BulkJobStatusDto })
   async getBulkJobStatus(@Param('job_id') jobId: string) {
@@ -193,6 +205,7 @@ export class AdminController {
 
   // ── Users ──────────────────────────────────────────────────────────────────
   @Get('users')
+  @Permissions(PERMISSIONS.PLATFORM_USERS_READ)
   @ApiOperation({ summary: 'Paginated user list' })
   @ApiQuery({ name: 'role', required: false, enum: ['student', 'teacher', 'admin'] })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -205,22 +218,26 @@ export class AdminController {
   }
 
   @Get('users/:id')
+  @Permissions(PERMISSIONS.PLATFORM_USERS_READ)
   @ApiOperation({ summary: 'User profile + performance summary' })
   @ApiResponse({ status: 200, description: 'User details', type: AdminUserDto })
   getUser(@Param('id', ParseCuidPipe) id: string) { return this.admin.getUser(id); }
 
   @Patch('users/:id/role')
+  @Permissions(PERMISSIONS.PLATFORM_USERS_WRITE)
   @ApiOperation({ summary: 'Change user role' })
   @ApiResponse({ status: 200, description: 'Role updated', type: AdminUserDto })
   updateRole(@Param('id', ParseCuidPipe) id: string, @Body('role') role: string) { return this.admin.updateUserRole(id, role); }
 
   @Patch('users/:id/suspend')
+  @Permissions(PERMISSIONS.PLATFORM_USERS_WRITE)
   @ApiOperation({ summary: 'Suspend or unsuspend account' })
   @ApiResponse({ status: 200, description: 'Account suspended/unsuspended', type: AdminUserDto })
   suspend(@Param('id', ParseCuidPipe) id: string, @Body('suspend') suspend: boolean) { return this.admin.toggleSuspend(id, suspend); }
 
   // ── Chapters ───────────────────────────────────────────────────────────────
   @Get('chapters')
+  @Permissions(PERMISSIONS.CONTENT_CHAPTERS_READ)
   @ApiOperation({ summary: 'List chapters (filterable)' })
   @ApiQuery({ name: 'subject_id', required: false })
   @ApiQuery({ name: 'grade', required: false, type: Number })
@@ -230,45 +247,54 @@ export class AdminController {
   }
 
   @Post('chapters')
+  @Permissions(PERMISSIONS.CONTENT_CHAPTERS_WRITE)
   @ApiOperation({ summary: 'Add new chapter' })
   @ApiBody({ type: CreateChapterDto })
   @ApiResponse({ status: 201, description: 'Chapter created', type: AdminChapterDto })
   createChapter(@Body() dto: CreateChapterDto) { return this.admin.createChapter(dto); }
 
   @Put('chapters/:id')
+  @Permissions(PERMISSIONS.CONTENT_CHAPTERS_WRITE)
   @ApiOperation({ summary: 'Edit chapter' })
   @ApiResponse({ status: 200, description: 'Chapter updated', type: AdminChapterDto })
   updateChapter(@Param('id', ParseCuidPipe) id: string, @Body() dto: Partial<CreateChapterDto>) { return this.admin.updateChapter(id, dto); }
 
   @Patch('chapters/reorder')
+  @Permissions(PERMISSIONS.CONTENT_CHAPTERS_WRITE)
   @ApiOperation({ summary: 'Batch reorder chapters' })
   @ApiResponse({ status: 200, description: 'Chapters reordered', type: [AdminChapterDto] })
   reorderChapters(@Body() items: { id: string; chapter_number: number }[]) { return this.admin.reorderChapters(items); }
 
   @Delete('chapters/:id')
+  @Permissions(PERMISSIONS.CONTENT_CHAPTERS_WRITE)
   @ApiOperation({ summary: 'Delete chapter (blocked if has active questions)' })
   @ApiResponse({ status: 200, description: 'Chapter deleted', type: AdminChapterDto })
   deleteChapter(@Param('id', ParseCuidPipe) id: string) { return this.admin.deleteChapter(id); }
 
   // ── Analytics ──────────────────────────────────────────────────────────────
   @Get('analytics/overview')
+  @Permissions(PERMISSIONS.PLATFORM_ANALYTICS_READ)
   @ApiOperation({ summary: 'Platform-wide totals' })
   @ApiResponse({ status: 200, description: 'Overview stats', type: AdminAnalyticsDto })
   analyticsOverview() { return this.admin.getAnalyticsOverview(); }
 
   @Get('analytics/missed')
+  @Permissions(PERMISSIONS.PLATFORM_ANALYTICS_READ)
   @ApiOperation({ summary: 'Top 20 most-missed questions' })
   analyticsMissed() { return this.admin.getMostMissed(); }
 
   @Get('analytics/subjects')
+  @Permissions(PERMISSIONS.PLATFORM_ANALYTICS_READ)
   @ApiOperation({ summary: 'Average score per subject' })
   analyticsSubjects() { return this.admin.getSubjectAverages(); }
 
   @Get('analytics/activity')
+  @Permissions(PERMISSIONS.PLATFORM_ANALYTICS_READ)
   @ApiOperation({ summary: 'Daily active users + sessions (last 30 days)' })
   analyticsActivity() { return this.admin.getActivityStats(); }
 
   @Get('analytics/ai-usage')
+  @Permissions(PERMISSIONS.PLATFORM_ANALYTICS_READ)
   @ApiOperation({ summary: 'AI API call volume per day' })
   analyticsAiUsage() { return this.admin.getAiUsage(); }
 }
