@@ -19,7 +19,7 @@ async function bootstrap() {
   app.setGlobalPrefix('v1');
 
   // ── CORS ───────────────────────────────────────────────────────────────────
-  const origins = (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:3000').split(',');
+  const origins = (process.env.CORS_ALLOWED_ORIGINS || 'https://gaaffilee-frontend.vercel.app').split(',');
   app.enableCors({
     origin: origins,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
